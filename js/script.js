@@ -4,6 +4,24 @@
 const API_KEY = "cc2410eca89d448bbd62deb4df4ba29f";
 const BASE_URL = "https://newsapi.org/v2/top-headlines";
 
+// NewsAPI blocks direct browser requests (CORS) on the free plan.
+// We route through allorigins.win which fetches server-side and
+// returns the response to the browser without CORS errors.
+const buildURL = (category) => {
+  const {
+    category: cat,
+    country,
+    q,
+  } = CATEGORY_MAP[category] || CATEGORY_MAP.general;
+  const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
+  if (cat) params.set("category", cat);
+  if (country) params.set("country", country);
+  if (q) params.set("q", q);
+  const newsApiUrl = `${BASE_URL}?${params.toString()}`;
+  // Wrap with allorigins proxy so browser can call it
+  return `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
+};
+
 
 const CATEGORY_MAP = {
   general: { 
@@ -115,19 +133,7 @@ const showError = (msg) => {
   errorMessage.classList.remove("hidden");
 };
 
-// ─── BUILD NEWS API URL 
-const buildURL = (category) => {
-  const {
-    category: cat,
-    country,
-    q,
-  } = CATEGORY_MAP[category] || CATEGORY_MAP.general;
-  const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
-  if (cat) params.set("category", cat);
-  if (country) params.set("country", country);
-  if (q) params.set("q", q);
-  return `${BASE_URL}?${params.toString()}`;
-};
+// ─── BUILD NEWS API URL  (defined above with proxy) ──────────────────────────
 
 // ─── MOCK DATA (shown when API key is placeholder / fails) ───────────────────
 const MOCK_ARTICLES = [
@@ -262,50 +268,39 @@ const fetchNews = async (category = "general") => {
   searchQuery = "";
   searchInput.value = "";
 
-  // If API key is placeholder, use mock data immediately
-  if (API_KEY === "YOUR_API_KEY") {
-    setTimeout(() => {
-      hideSpinner();
-      allArticles = MOCK_ARTICLES;
-      renderAll(allArticles);
-    }, 800); // simulate network delay
-    return;
-  }
-
   try {
     const url = buildURL(category);
     const response = await fetch(url);
 
-    // Throw custom Error if response not OK
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json(); // JSON → object
+    // allorigins wraps the real response inside { contents: "..." }
+    const proxyData = await response.json();
+    const data = JSON.parse(proxyData.contents);
 
     if (data.status !== "ok") {
       throw new Error(data.message || "API returned an error.");
     }
 
-    // Destructure articles from response
     const { articles } = data;
 
-    // Filter out articles with [Removed] title
     allArticles = articles.filter(
       (a) => a.title && !a.title.includes("[Removed]"),
     );
 
-    renderAll(allArticles);
-  } catch (err) {
-    // Error object used here
-    console.error("NewsWave Error:", err.message);
+    if (allArticles.length === 0) {
+      throw new Error("No articles returned from API.");
+    }
 
-    // Fallback to mock data on any network / API error
+    renderAll(allArticles);
+
+  } catch (err) {
+    console.error("Bulletin Times Error:", err.message);
+    // Fallback to mock data on any network / CORS / API error
     allArticles = MOCK_ARTICLES;
     renderAll(allArticles);
-
-    // Optionally tell user (uncomment to show banner):
-    // showError(`Could not load live news: ${err.message}. Showing sample data.`);
   } finally {
     hideSpinner();
   }
