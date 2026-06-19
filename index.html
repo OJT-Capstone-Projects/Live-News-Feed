@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Bulletin Times – Live News Feed</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="logo">
+          <div class="logo-text">
+            <span class="logo-title">The Bulletin Times</span>
+            <span class="logo-tagline">India's Trusted News Source</span>
+          </div>
+        </div>
+        <div class="search-wrapper">
+          <input type="text" id="searchInput"  class="search-input" placeholder="Search news..." aria-label="Search news"/>
+          <button id="searchBtn" class="search-btn" aria-label="Search"> Search </button>
+        </div>
+      </div>
+      <div class="header-divider"></div>
+    </header>
+
+    <!-- ===== NAVIGATION ===== -->
+    <nav class="navbar" role="navigation" aria-label="Category navigation">
+      <ul class="nav-list" id="navList">
+        <li>
+          <button class="nav-btn active" data-category="general">Home</button>
+        </li>
+        <li><button class="nav-btn" data-category="world">World</button></li>
+        <li>
+          <button class="nav-btn" data-category="business">Business</button>
+        </li>
+        <li>
+          <button class="nav-btn" data-category="technology">Technology</button>
+        </li>
+        <li>
+            <button class="nav-btn" data-category="sports">Sports</button>
+        </li>
+        <li>
+            <button class="nav-btn" data-category="health">Health</button>
+        </li>
+        <li>
+          <button class="nav-btn" data-category="entertainment">  Entertainment  </button>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- ===== DATE BANNER ===== -->
+    <div class="date-banner">
+      <div class="date-banner-inner">
+        <span class="date-label">Today's Edition</span>
+        <span class="date-separator">|</span>
+        <span class="date-value" id="currentDate"></span>
+      </div>
+    </div>
+
+    <!-- ===== LOADING SPINNER ===== -->
+    <div id="loadingSpinner"  class="spinner-overlay"  aria-live="polite" aria-label="Loading news" >
+      <div class="spinner"></div>
+      <p class="spinner-text">Fetching latest news...</p>
+    </div>
+
+    <!-- ===== ERROR MESSAGE ===== -->
+    <div id="errorMessage" class="error-banner hidden" role="alert">
+      <span id="errorText">Something went wrong. Please try again.</span>
+      <button id="retryBtn" class="retry-btn">Retry</button>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+      <!-- HERO SECTION -->
+      <section class="hero-section"     id="heroSection" aria-label="Featured article"  >
+        <!-- Populated by JS -->
+      </section>
+
+      <!-- CONTENT ROW: Grid + Sidebar -->
+      <div class="content-row">
+        <!-- NEWS GRID -->
+        <section class="news-grid-section" aria-label="News articles">
+          <h2 class="section-title" id="gridTitle">Latest News</h2>
+          <div class="news-grid" id="newsGrid">
+          </div>
+          <div id="noResults" class="no-results hidden">
+            <p>No articles found for your search.</p>
+          </div>
+        </section>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" aria-label="Trending news">
+          <div class="sidebar-widget">
+            <h3 class="widget-title">Trending Now</h3>
+            <ol class="trending-list" id="trendingList"></ol>
+           
+          </div>
+
+          <div class="sidebar-widget ad-widget">
+            <h4 class="widget-title">Newsletter</h4>
+            <p>Stay informed. Get top stories in your inbox.</p>
+            <input type="email" class="newsletter-input" placeholder="Enter your email"  />
+            <button class="newsletter-btn">Subscribe</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="site-footer">
+      <div class="footer-bottom">
+        <p>  &copy; <span id="footerYear"></span> The Bulletin Times. All rights reserved.
+        </p>
+      </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>
