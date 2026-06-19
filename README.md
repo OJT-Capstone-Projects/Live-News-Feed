@@ -105,3 +105,5 @@ https://newsapi.org/v2/top-headlines
 ## License
 
 This project is intended for educational and learning purposes.
+
+<img width="2048" height="1173" alt="image" src="https://github.com/user-attachments/assets/fcf8b5da-c864-4613-adf6-95a30c245086" />
