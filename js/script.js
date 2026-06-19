@@ -4,24 +4,6 @@
 const API_KEY = "cc2410eca89d448bbd62deb4df4ba29f";
 const BASE_URL = "https://newsapi.org/v2/top-headlines";
 
-// NewsAPI blocks direct browser requests (CORS) on the free plan.
-// We route through allorigins.win which fetches server-side and
-// returns the response to the browser without CORS errors.
-const buildURL = (category) => {
-  const {
-    category: cat,
-    country,
-    q,
-  } = CATEGORY_MAP[category] || CATEGORY_MAP.general;
-  const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
-  if (cat) params.set("category", cat);
-  if (country) params.set("country", country);
-  if (q) params.set("q", q);
-  const newsApiUrl = `${BASE_URL}?${params.toString()}`;
-  // Wrap with allorigins proxy so browser can call it
-  return `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
-};
-
 
 const CATEGORY_MAP = {
   general: { 
@@ -133,7 +115,20 @@ const showError = (msg) => {
   errorMessage.classList.remove("hidden");
 };
 
-// ─── BUILD NEWS API URL  (defined above with proxy) ──────────────────────────
+// ─── BUILD NEWS API URL
+const buildURL = (category) => {
+  const {
+    category: cat,
+    country,
+    q,
+  } = CATEGORY_MAP[category] || CATEGORY_MAP.general;
+  const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
+  if (cat) params.set("category", cat);
+  if (country) params.set("country", country);
+  if (q) params.set("q", q);
+  const newsApiUrl = `${BASE_URL}?${params.toString()}`;
+  return `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
+};
 
 // ─── MOCK DATA (shown when API key is placeholder / fails) ───────────────────
 const MOCK_ARTICLES = [
