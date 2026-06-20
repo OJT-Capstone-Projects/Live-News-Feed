@@ -244,12 +244,8 @@ const fetchNews = async (category = "general") => {
   searchQuery = "";
   searchInput.value = "";
 
-  // Track whether we ended up on live data or fallback
-  let usedFallback = false;
-
   try {
     const url      = buildURL(category);
-    // 8-second timeout – if allorigins is slow it won't hang forever
     const response = await fetchWithTimeout(url, 8000);
 
     if (!response.ok) {
@@ -258,7 +254,6 @@ const fetchNews = async (category = "general") => {
 
     const proxyData = await response.json();
 
-    // allorigins returns { contents: "..." } – guard against null/empty
     if (!proxyData || !proxyData.contents) {
       throw new Error("Proxy returned empty response.");
     }
@@ -270,60 +265,65 @@ const fetchNews = async (category = "general") => {
       throw new Error("Could not parse API response.");
     }
 
-    // NewsAPI signals errors via status field
     if (data.status !== "ok") {
       throw new Error(data.message || "NewsAPI returned an error.");
     }
 
     const { articles } = data;
 
-    // Filter out removed / null articles
     const clean = articles.filter(
       (a) => a.title && !a.title.includes("[Removed]") && a.title !== "null"
     );
 
     if (clean.length === 0) {
-      throw new Error("No articles in API response – using sample data.");
+      throw new Error("No articles found for this category.");
     }
 
+    // ── SUCCESS: real live data ──
     allArticles = clean;
+    hideFallbackBanner();
+    renderAll(allArticles);
 
   } catch (err) {
-    console.warn("News API fetch failed:", err.message, "— showing sample data.");
-    allArticles = MOCK_ARTICLES;
-    usedFallback = true;
+    console.warn("News fetch failed:", err.message);
+
+    // Show error banner — tell user exactly what happened
+    showFallbackBanner(
+      "Could not load live news: " + err.message + ". Showing sample articles."
+    );
+
+    // Only use mock data if there is nothing else to show
+    // (prevents mock from silently replacing real data on category switch)
+    if (allArticles.length === 0) {
+      allArticles = MOCK_ARTICLES;
+      renderAll(allArticles);
+    }
+    // If allArticles already has real articles from a previous category,
+    // keep those visible instead of overwriting with mock data
+
   } finally {
     hideSpinner();
   }
-
-  renderAll(allArticles);
-
-  // Show a subtle banner if we fell back to mock data
-  if (usedFallback) {
-    showFallbackBanner();
-  } else {
-    hideFallbackBanner();
-  }
 };
 
-// ─── FALLBACK BANNER  (tells user they're seeing sample data)
-const showFallbackBanner = () => {
+// ─── FALLBACK BANNER  (tells user live news failed — shown on error, hidden on success)
+const showFallbackBanner = (message) => {
   let banner = document.getElementById("fallbackBanner");
   if (!banner) {
     banner = document.createElement("div");
     banner.id = "fallbackBanner";
     banner.style.cssText =
       "background:#fff3cd;border-left:4px solid #ffc107;padding:10px 18px;" +
-      "font-size:0.82rem;color:#856404;max-width:1200px;margin:0 auto 0;" +
-      "display:flex;align-items:center;justify-content:space-between;gap:10px;";
-    banner.innerHTML =
-      "<span>Live news unavailable right now — showing sample articles.</span>" +
-      "<button onclick=\"fetchNews(activeCategory)\" " +
-      "style=\"background:#ffc107;border:none;padding:4px 12px;border-radius:4px;" +
-      "font-size:0.8rem;font-weight:600;cursor:pointer;\">Retry</button>";
+      "font-size:0.82rem;color:#856404;max-width:1200px;margin:0 auto;" +
+      "display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;";
     const main = document.querySelector(".main-content");
     if (main) main.insertAdjacentElement("beforebegin", banner);
   }
+  banner.innerHTML =
+    "<span>" + (message || "Live news unavailable — showing sample articles.") + "</span>" +
+    "<button onclick=\"fetchNews(activeCategory)\" " +
+    "style=\"background:#ffc107;border:none;padding:4px 14px;border-radius:4px;" +
+    "font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0;\">Retry</button>";
   banner.style.display = "flex";
 };
 
