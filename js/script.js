@@ -4,41 +4,17 @@
 const API_KEY = "cc2410eca89d448bbd62deb4df4ba29f";
 const BASE_URL = "https://newsapi.org/v2/top-headlines";
 
-
+// NewsAPI free plan blocks direct browser requests (CORS).
+// We use allorigins.win as a server-side proxy.
+// Each category uses only params that NewsAPI accepts cleanly.
 const CATEGORY_MAP = {
-  general: { 
-    category: "general",
-     country: "us" 
-    },
-  india: { 
-    category: "general",
-     country: "in" 
-    },
-  world: { 
-    category: "general",
-     country: "",
-      q: "world" 
-    },
-  business: { 
-    category: "business",
-     country: "us" 
-    },
-technology: { 
-category: "technology", 
-country: "us" 
-},
-sports: { 
-category: "sports",
-country: "us" 
-},
-  health: {
-category: "health", 
-country: "us"
- },
-  entertainment: { 
-category: "entertainment",
-country: "us"
- },
+  general:       { category: "general",       country: "us" },
+  world:         { category: "general",       country: "us", q: "world" },
+  business:      { category: "business",      country: "us" },
+  technology:    { category: "technology",    country: "us" },
+  sports:        { category: "sports",        country: "us" },
+  health:        { category: "health",        country: "us" },
+  entertainment: { category: "entertainment", country: "us" },
 };
 
 
@@ -117,17 +93,22 @@ const showError = (msg) => {
 
 // ─── BUILD NEWS API URL
 const buildURL = (category) => {
-  const {
-    category: cat,
-    country,
-    q,
-  } = CATEGORY_MAP[category] || CATEGORY_MAP.general;
+  const config = CATEGORY_MAP[category] || CATEGORY_MAP.general;
   const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
-  if (cat) params.set("category", cat);
-  if (country) params.set("country", country);
-  if (q) params.set("q", q);
+  if (config.category) params.set("category", config.category);
+  if (config.country)  params.set("country",  config.country);
+  if (config.q)        params.set("q",         config.q);
   const newsApiUrl = `${BASE_URL}?${params.toString()}`;
   return `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
+};
+
+// ─── FETCH WITH TIMEOUT HELPER
+// Wraps fetch() with a timeout so hanging requests fail fast
+const fetchWithTimeout = (url, ms) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal })
+    .finally(() => clearTimeout(timer));
 };
 
 // ─── MOCK DATA (shown when API key is placeholder / fails) ───────────────────
@@ -263,42 +244,92 @@ const fetchNews = async (category = "general") => {
   searchQuery = "";
   searchInput.value = "";
 
+  // Track whether we ended up on live data or fallback
+  let usedFallback = false;
+
   try {
-    const url = buildURL(category);
-    const response = await fetch(url);
+    const url      = buildURL(category);
+    // 8-second timeout – if allorigins is slow it won't hang forever
+    const response = await fetchWithTimeout(url, 8000);
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`Proxy error: HTTP ${response.status}`);
     }
 
-    // allorigins wraps the real response inside { contents: "..." }
     const proxyData = await response.json();
-    const data = JSON.parse(proxyData.contents);
 
+    // allorigins returns { contents: "..." } – guard against null/empty
+    if (!proxyData || !proxyData.contents) {
+      throw new Error("Proxy returned empty response.");
+    }
+
+    let data;
+    try {
+      data = JSON.parse(proxyData.contents);
+    } catch (parseErr) {
+      throw new Error("Could not parse API response.");
+    }
+
+    // NewsAPI signals errors via status field
     if (data.status !== "ok") {
-      throw new Error(data.message || "API returned an error.");
+      throw new Error(data.message || "NewsAPI returned an error.");
     }
 
     const { articles } = data;
 
-    allArticles = articles.filter(
-      (a) => a.title && !a.title.includes("[Removed]"),
+    // Filter out removed / null articles
+    const clean = articles.filter(
+      (a) => a.title && !a.title.includes("[Removed]") && a.title !== "null"
     );
 
-    if (allArticles.length === 0) {
-      throw new Error("No articles returned from API.");
+    if (clean.length === 0) {
+      throw new Error("No articles in API response – using sample data.");
     }
 
-    renderAll(allArticles);
+    allArticles = clean;
 
   } catch (err) {
-    console.error("Bulletin Times Error:", err.message);
-    // Fallback to mock data on any network / CORS / API error
+    console.warn("News API fetch failed:", err.message, "— showing sample data.");
     allArticles = MOCK_ARTICLES;
-    renderAll(allArticles);
+    usedFallback = true;
   } finally {
     hideSpinner();
   }
+
+  renderAll(allArticles);
+
+  // Show a subtle banner if we fell back to mock data
+  if (usedFallback) {
+    showFallbackBanner();
+  } else {
+    hideFallbackBanner();
+  }
+};
+
+// ─── FALLBACK BANNER  (tells user they're seeing sample data)
+const showFallbackBanner = () => {
+  let banner = document.getElementById("fallbackBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "fallbackBanner";
+    banner.style.cssText =
+      "background:#fff3cd;border-left:4px solid #ffc107;padding:10px 18px;" +
+      "font-size:0.82rem;color:#856404;max-width:1200px;margin:0 auto 0;" +
+      "display:flex;align-items:center;justify-content:space-between;gap:10px;";
+    banner.innerHTML =
+      "<span>Live news unavailable right now — showing sample articles.</span>" +
+      "<button onclick=\"fetchNews(activeCategory)\" " +
+      "style=\"background:#ffc107;border:none;padding:4px 12px;border-radius:4px;" +
+      "font-size:0.8rem;font-weight:600;cursor:pointer;\">Retry</button>";
+    const main = document.querySelector(".main-content");
+    if (main) main.insertAdjacentElement("beforebegin", banner);
+  }
+  banner.style.display = "flex";
+};
+
+const hideFallbackBanner = () => {
+  const banner = document.getElementById("fallbackBanner");
+  if (banner) banner.style.display = "none";
 };
 
 // ─── RENDER ALL SECTIONS 
