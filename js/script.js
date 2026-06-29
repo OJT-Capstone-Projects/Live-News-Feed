@@ -1,7 +1,7 @@
 
 
 // ─── API CONFIG ---
-const API_KEY = "cc2410eca89d448bbd62deb4df4ba29f";
+const API_KEY = "19abcb980601443f8f2415e91d9d2540";
 const BASE_URL = "https://newsapi.org/v2/top-headlines";
 
 // NewsAPI free plan blocks direct browser requests (CORS).
