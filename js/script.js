@@ -95,7 +95,7 @@ const showError = (msg) => {
 // CHANGED: Removed AllOrigins proxy wrapper. Now returns the direct NewsAPI URL.
 const buildURL = (category) => {
   const config = CATEGORY_MAP[category] || CATEGORY_MAP.general;
-  const params = new URLSearchParams({ apiKey: API_KEY, pageSize: 20 });
+  const params = new URLSearchParams({ apiKey: cc2410eca89d448bbd62deb4df4ba29f, pageSize: 20 });
   if (config.category) params.set("category", config.category);
   if (config.country)  params.set("country",  config.country);
   if (config.q)        params.set("q",         config.q);
