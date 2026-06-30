@@ -1,110 +1,118 @@
 
+const API_KEY           = "3564278a9c84c5b2617c35a72c41e1d4";
+const BASE_URL_HEADLINES = "https://gnews.io/api/v4/top-headlines";
+const BASE_URL_SEARCH    = "https://gnews.io/api/v4/search";
 
-// ─── API CONFIG ---
-const API_KEY = "19abcb980601443f8f2415e91d9d2540";
-const BASE_URL = "https://newsapi.org/v2/top-headlines";
-
-// NewsAPI free plan blocks direct browser requests (CORS).
-// We use allorigins.win as a server-side proxy.
-// Each category uses only params that NewsAPI accepts cleanly.
+// CHANGED: GNews supports these category names natively.
+// The "world" category maps to a keyword search on the headlines endpoint
+// because GNews top-headlines uses "nation" for country-level news.
 const CATEGORY_MAP = {
-  general:       { category: "general",       country: "us" },
-  world:         { category: "general",       country: "us", q: "world" },
-  business:      { category: "business",      country: "us" },
-  technology:    { category: "technology",    country: "us" },
-  sports:        { category: "sports",        country: "us" },
-  health:        { category: "health",        country: "us" },
-  entertainment: { category: "entertainment", country: "us" },
+  general:       { category: "general" },
+  world:         { category: "world"   },
+  business:      { category: "business" },
+  technology:    { category: "technology" },
+  sports:        { category: "sports" },
+  health:        { category: "health" },
+  entertainment: { category: "entertainment" },
 };
 
-
-let allArticles = []; // full list from last fetch
+let allArticles    = []; // full list from last fetch
 let activeCategory = "general";
-let searchQuery = "";
+let searchQuery    = "";
 
-// ─── DOM REFERENCES (getElementById / querySelector use kiya)
+// ─── DOM REFERENCES ───────────────────────────────────────────────────────────
 const loadingSpinner = document.getElementById("loadingSpinner");
-const errorMessage = document.getElementById("errorMessage");
-const errorText = document.getElementById("errorText");
-const retryBtn = document.getElementById("retryBtn");
-const heroSection = document.getElementById("heroSection");
-const newsGrid = document.getElementById("newsGrid");
-const trendingList = document.getElementById("trendingList");
-const searchInput = document.getElementById("searchInput");
-const searchBtn = document.getElementById("searchBtn");
-const navList = document.getElementById("navList");
-const noResults = document.getElementById("noResults");
-const gridTitle = document.getElementById("gridTitle");
-const footerYear = document.getElementById("footerYear");
-const currentDate = document.getElementById("currentDate");
+const errorMessage   = document.getElementById("errorMessage");
+const errorText      = document.getElementById("errorText");
+const retryBtn       = document.getElementById("retryBtn");
+const heroSection    = document.getElementById("heroSection");
+const newsGrid       = document.getElementById("newsGrid");
+const trendingList   = document.getElementById("trendingList");
+const searchInput    = document.getElementById("searchInput");
+const searchBtn      = document.getElementById("searchBtn");
+const navList        = document.getElementById("navList");
+const noResults      = document.getElementById("noResults");
+const gridTitle      = document.getElementById("gridTitle");
+const footerYear     = document.getElementById("footerYear");
+const currentDate    = document.getElementById("currentDate");
 
-// ─── UTILITY: FALLBACK IMAGE 
+// ─── UTILITY: FALLBACK IMAGE ──────────────────────────────────────────────────
 const FALLBACK_IMG =
   "https://placehold.co/600x400/f3f1ee/888888?text=The+Bulletin+Times";
 
 const safeImg = (url) => url || FALLBACK_IMG;
 
-// ─── UTILITY: FORMAT DATE
+// ─── UTILITY: FORMAT DATE ─────────────────────────────────────────────────────
 const formatDate = (iso) => {
   if (!iso) return "Unknown date";
   const d = new Date(iso);
   return d.toLocaleDateString("en-IN", {
-    day: "numeric",
+    day:   "numeric",
     month: "short",
-    year: "numeric",
+    year:  "numeric",
   });
 };
 
-// ─── UTILITY: TRUNCATE TEXT
+// ─── UTILITY: TRUNCATE TEXT ───────────────────────────────────────────────────
 const truncate = (text, max) =>
   text && text.length > max ? text.slice(0, max) + "…" : text || "";
 
-// ─── SET CURRENT DATE  (date-banner)
+// ─── SET CURRENT DATE (date-banner) ──────────────────────────────────────────
 const setHeaderDate = () => {
   const now = new Date();
   currentDate.innerText = now.toLocaleDateString("en-IN", {
     weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    day:     "numeric",
+    month:   "long",
+    year:    "numeric",
   });
 };
 
 footerYear.innerText = new Date().getFullYear();
 setHeaderDate();
 
-// ─── SHOW / HIDE SPINNER-
+// ─── SHOW / HIDE SPINNER ──────────────────────────────────────────────────────
 const showSpinner = () => {
   loadingSpinner.classList.remove("hidden");
   errorMessage.classList.add("hidden");
-  heroSection.innerHTML = "";
-  newsGrid.innerHTML = "";
-  trendingList.innerHTML = "";
+  heroSection.innerHTML   = "";
+  newsGrid.innerHTML      = "";
+  trendingList.innerHTML  = "";
 };
 
 const hideSpinner = () => loadingSpinner.classList.add("hidden");
 
-// ─── SHOW ERROR 
+// ─── SHOW ERROR ───────────────────────────────────────────────────────────────
 const showError = (msg) => {
   hideSpinner();
   errorText.innerText = msg;
   errorMessage.classList.remove("hidden");
 };
 
-// ─── BUILD NEWS API URL
-// CHANGED: Removed AllOrigins proxy wrapper. Now returns the direct NewsAPI URL.
+// ─── BUILD GNEWS URL ──────────────────────────────────────────────────────────
+// CHANGED: Builds a GNews API URL instead of a NewsAPI URL.
+//   - Uses BASE_URL_HEADLINES for category fetches.
+//   - GNews param names: `category`, `lang`, `country`, `max`, `apikey`.
+//   - No proxy wrapper needed — GNews allows browser requests directly.
 const buildURL = (category) => {
   const config = CATEGORY_MAP[category] || CATEGORY_MAP.general;
-  const params = new URLSearchParams({ apiKey: 19abcb980601443f8f2415e91d9d2540 , pageSize: 20 });
+
+  // CHANGED: GNews param is `apikey` (lowercase k), not `apiKey`
+  const params = new URLSearchParams({
+    apikey:   API_KEY,
+    lang:     "en",
+    country:  "us",
+    max:      10,            // free plan max per request
+    nullable: "description,image", // allow null fields instead of omitting articles
+  });
+
   if (config.category) params.set("category", config.category);
-  if (config.country)  params.set("country",  config.country);
-  if (config.q)        params.set("q",         config.q);
-  // CHANGED: Return direct NewsAPI URL instead of wrapping with AllOrigins proxy
-  return `${BASE_URL}?${params.toString()}`;
+
+  return `${BASE_URL_HEADLINES}?${params.toString()}`;
 };
 
-// ─── FETCH WITH TIMEOUT HELPER
-// Wraps fetch() with a timeout so hanging requests fail fast
+// ─── FETCH WITH TIMEOUT HELPER ────────────────────────────────────────────────
+// Wraps fetch() with a timeout so hanging requests fail fast.
 const fetchWithTimeout = (url, ms) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -112,7 +120,7 @@ const fetchWithTimeout = (url, ms) => {
     .finally(() => clearTimeout(timer));
 };
 
-// ─── MOCK DATA (shown when API key is placeholder / fails) ───────────────────
+// ─── MOCK DATA (shown when API key is placeholder / request fails) ─────────────
 const MOCK_ARTICLES = [
   {
     title: "India's Space Mission Marks Historic Milestone with Lunar Landing",
@@ -238,34 +246,48 @@ const MOCK_ARTICLES = [
   },
 ];
 
-// ─── FETCH NEWS 
+// ─── NORMALISE A GNEWS ARTICLE ────────────────────────────────────────────────
+// CHANGED: GNews uses `image` for the thumbnail URL; the rest of the app
+//          expects `urlToImage`. This tiny adapter keeps every render function
+//          (renderHero, createCard, renderTrending) untouched.
+const normaliseArticle = (a) => ({
+  ...a,
+  urlToImage: a.image || null,   // CHANGED: map GNews `image` → `urlToImage`
+});
+
+// ─── FETCH NEWS ───────────────────────────────────────────────────────────────
 const fetchNews = async (category = "general") => {
   showSpinner();
   activeCategory = category;
-  searchQuery = "";
+  searchQuery    = "";
   searchInput.value = "";
 
   try {
     const url      = buildURL(category);
     const response = await fetchWithTimeout(url, 8000);
 
-    // CHANGED: Check HTTP status directly from NewsAPI (no proxy layer)
+    // CHANGED: GNews returns HTTP 200 for success, 4xx/5xx for errors.
+    //          No proxy layer to unwrap — parse JSON directly.
     if (!response.ok) {
-      throw new Error(`NewsAPI error: HTTP ${response.status}`);
+      throw new Error(`GNews API error: HTTP ${response.status}`);
     }
 
-    // CHANGED: Parse JSON directly from the NewsAPI response (removed proxy .contents unwrapping)
+    // CHANGED: GNews response shape: { totalArticles, articles: [...] }
+    //          (was NewsAPI: { status, totalResults, articles: [...] })
     const data = await response.json();
 
-    if (data.status !== "ok") {
-      throw new Error(data.message || "NewsAPI returned an error.");
+    // GNews signals errors via HTTP status codes, not a status field.
+    // But guard against an unexpected shape just in case.
+    if (!Array.isArray(data.articles)) {
+      throw new Error(data.errors?.[0] || "Unexpected response from GNews API.");
     }
 
-    const { articles } = data;
-
-    const clean = articles.filter(
-      (a) => a.title && !a.title.includes("[Removed]") && a.title !== "null"
-    );
+    // CHANGED: Normalise field names (image → urlToImage) before filtering.
+    const clean = data.articles
+      .map(normaliseArticle)
+      .filter(
+        (a) => a.title && !a.title.includes("[Removed]") && a.title !== "null"
+      );
 
     if (clean.length === 0) {
       throw new Error("No articles found for this category.");
@@ -277,34 +299,34 @@ const fetchNews = async (category = "general") => {
     renderAll(allArticles);
 
   } catch (err) {
-    // CHANGED: Updated error log to reflect direct API failure (not proxy failure)
+    // CHANGED: Updated error log to reflect GNews failure, not NewsAPI.
     console.error(
       "Live news fetch failed. Reason:", err.message,
-      "\nPossible causes: CORS restriction on NewsAPI free plan (browser requests blocked), " +
-      "invalid or expired API key, network error, or rate limit exceeded. " +
+      "\nPossible causes: invalid/missing GNews API key, daily request limit " +
+      "reached (100 req/day on free plan), network error, or rate limit. " +
       "Falling back to MOCK_ARTICLES."
     );
 
-    // Show error banner — tell user exactly what happened
+    // Show fallback banner — tell user exactly what happened.
     showFallbackBanner(
       "Could not load live news: " + err.message + ". Showing sample articles."
     );
 
-    // Only use mock data if there is nothing else to show
-    // (prevents mock from silently replacing real data on category switch)
+    // Only replace articles with mock data if there is nothing else to show.
     if (allArticles.length === 0) {
       allArticles = MOCK_ARTICLES;
       renderAll(allArticles);
     }
     // If allArticles already has real articles from a previous category,
-    // keep those visible instead of overwriting with mock data
+    // keep those visible instead of overwriting with mock data.
 
   } finally {
     hideSpinner();
   }
 };
 
-// ─── FALLBACK BANNER  (tells user live news failed — shown on error, hidden on success)
+// ─── FALLBACK BANNER ──────────────────────────────────────────────────────────
+// Tells the user live news failed; shown on error, hidden on success.
 const showFallbackBanner = (message) => {
   let banner = document.getElementById("fallbackBanner");
   if (!banner) {
@@ -330,24 +352,24 @@ const hideFallbackBanner = () => {
   if (banner) banner.style.display = "none";
 };
 
-// ─── RENDER ALL SECTIONS 
+// ─── RENDER ALL SECTIONS ──────────────────────────────────────────────────────
 const renderAll = (articles) => {
   if (!articles || articles.length === 0) {
     heroSection.innerHTML = "";
-    newsGrid.innerHTML = "";
+    newsGrid.innerHTML    = "";
     noResults.classList.remove("hidden");
     return;
   }
 
   noResults.classList.add("hidden");
 
-  const [hero, ...rest] = articles; // destructuring
+  const [hero, ...rest] = articles;
   renderHero(hero);
   renderGrid(rest.slice(0, 11)); // up to 11 cards
   renderTrending(articles.slice(0, 5));
 };
 
-// ─── RENDER HERO ─────────────────────────────────────────────────────────────
+// ─── RENDER HERO ──────────────────────────────────────────────────────────────
 const renderHero = (article) => {
   const { title, description, urlToImage, publishedAt, source, url } = article;
 
@@ -376,15 +398,13 @@ const renderHero = (article) => {
   `;
 };
 
-// ─── CREATE CARD ELEMENT
+// ─── CREATE CARD ELEMENT ──────────────────────────────────────────────────────
 const createCard = (article) => {
   const { title, description, urlToImage, publishedAt, source, url } = article;
 
-  // createElement
   const card = document.createElement("article");
   card.classList.add("news-card");
 
-  // innerHTML with template literal
   card.innerHTML = `
     <div class="card-img-wrap">
       <img
@@ -410,7 +430,7 @@ const createCard = (article) => {
   return card;
 };
 
-// ─── RENDER GRID 
+// ─── RENDER GRID ──────────────────────────────────────────────────────────────
 const renderGrid = (articles) => {
   newsGrid.innerHTML = "";
 
@@ -421,14 +441,13 @@ const renderGrid = (articles) => {
 
   noResults.classList.add("hidden");
 
-  // forEach + appendChild
   articles.forEach((article) => {
     const card = createCard(article);
-    newsGrid.appendChild(card); // appendChild
+    newsGrid.appendChild(card);
   });
 };
 
-// ─── RENDER TRENDING SIDEBAR 
+// ─── RENDER TRENDING SIDEBAR ──────────────────────────────────────────────────
 const renderTrending = (articles) => {
   trendingList.innerHTML = "";
 
@@ -441,7 +460,6 @@ const renderTrending = (articles) => {
       <span class="trending-text">${truncate(article.title, 90)}</span>
     `;
 
-    // click event via addEventListener
     li.addEventListener("click", () => {
       const target = article.url || "#";
       window.open(target, "_blank", "noopener");
@@ -451,7 +469,7 @@ const renderTrending = (articles) => {
   });
 };
 
-// ─── SEARCH 
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
 const performSearch = () => {
   searchQuery = searchInput.value.trim().toLowerCase();
 
@@ -461,7 +479,6 @@ const performSearch = () => {
     return;
   }
 
-  // filter + includes (Array methods)
   const results = allArticles.filter((article) => {
     const haystack = `${article.title} ${article.description}`.toLowerCase();
     return haystack.includes(searchQuery);
@@ -469,7 +486,6 @@ const performSearch = () => {
 
   gridTitle.innerText = `Search: "${searchInput.value.trim()}"`;
 
-  // find the best match for hero
   const heroMatch = results.find((a) => a.urlToImage) || results[0];
 
   if (heroMatch) renderHero(heroMatch);
@@ -483,12 +499,12 @@ const performSearch = () => {
   }
 };
 
-// ─── EVENTS
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
 
-// Search button click event
+// Search button click
 searchBtn.addEventListener("click", performSearch);
 
-// Search input keypress (input event)
+// Clear search on empty input
 searchInput.addEventListener("input", () => {
   if (searchInput.value.trim() === "") {
     renderAll(allArticles);
@@ -496,18 +512,17 @@ searchInput.addEventListener("input", () => {
   }
 });
 
-// Also allow Enter key
+// Enter key triggers search
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") performSearch();
 });
 
-// Nav category buttons – querySelectorAll + forEach
+// Nav category buttons
 const navBtns = document.querySelectorAll(".nav-btn");
 
 navBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
-    // Remove active from all, add to clicked
-    navBtns.forEach((b) => b.classList.remove("active")); // classList
+    navBtns.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
     const category = btn.dataset.category;
@@ -523,8 +538,8 @@ retryBtn.addEventListener("click", () => {
   fetchNews(activeCategory);
 });
 
-// Newsletter subscribe button (simple feedback)
-const newsletterBtn = document.querySelector(".newsletter-btn");
+// Newsletter subscribe button
+const newsletterBtn   = document.querySelector(".newsletter-btn");
 const newsletterInput = document.querySelector(".newsletter-input");
 
 newsletterBtn.addEventListener("click", () => {
@@ -544,5 +559,5 @@ newsletterBtn.addEventListener("click", () => {
   }, 3000);
 });
 
-// ─── INITIAL LOAD 
+// ─── INITIAL LOAD ─────────────────────────────────────────────────────────────
 fetchNews("general");

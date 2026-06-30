@@ -274,6 +274,145 @@ img {
 }
 
 /* ===========================
+   READ FULL STORY BUTTON
+=========================== */
+.read-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 20px;
+  padding: 11px 26px;
+  background: #b5171e;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 5px;
+  border: 2px solid #b5171e;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s, transform 0.12s;
+  cursor: pointer;
+}
+
+.read-more-btn::after {
+  content: "→";
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.read-more-btn:hover {
+  background: #ffffff;
+  color: #b5171e;
+  transform: translateY(-1px);
+}
+
+.read-more-btn:active {
+  transform: translateY(0);
+}
+
+/* ===========================
+   CARD IMAGE — broken image
+   placeholder skeleton
+=========================== */
+.card-img-wrap {
+  position: relative;
+  background: #ece9e4;
+}
+
+.card-img-wrap img {
+  transition: opacity 0.25s;
+}
+
+/* Hero image wrap — ensure it never collapses */
+.hero-image-wrap {
+  position: relative;
+  min-height: 300px;
+  background: #ece9e4;
+}
+
+.hero-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: #b5171e;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+
+/* Hero meta spacing */
+.hero-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 12px;
+}
+
+/* Hero category label */
+.hero-category {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #b5171e;
+  margin-bottom: 8px;
+}
+
+/* Card category badge */
+.card-category-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  backdrop-filter: blur(2px);
+}
+
+/* Card footer layout */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.card-date {
+  font-size: 0.72rem;
+  color: #999;
+}
+
+.card-read-more {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b5171e;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.card-read-more:hover {
+  text-decoration: underline;
+  color: #8a1115;
+}
+
+/* nav active state */
+.nav-btn.active,
+.nav-btn:hover {
+  background: rgba(255,255,255,0.18);
+  border-radius: 3px;
+}
+
+/* ===========================
    TABLET
 =========================== */
 @media screen and (max-width: 1024px) {
